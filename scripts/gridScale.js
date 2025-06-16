@@ -146,10 +146,9 @@ class ScaleGridLayer extends CanvasLayer {
           order: 8,
           title: "Toggle the grid display temporarily",
           toggle: true,
-          onChange: (isActive) => { 
-            console.log("ToggleGridTool onChange called, active:", isActive); 
-            gridScaler.toggleGrid(); 
-          } 
+          onChange: (_, isActive) => { 
+            gridScaler.toggleGrid(isActive); 
+          }
         },
         ResetGridTool: {
           icon: "fas fa-undo",
@@ -960,49 +959,50 @@ class ScaleGridLayer extends CanvasLayer {
   // to be fully transparent or just really light. In those cases, it's a pain to manually configure 
   // the settings to make it easier to see while you line up the Foundry grid. This lets you toggle 
   // an easy to see grid temporarily to make the job easier.
-  toggleGrid() {
+  toggleGrid(isActive) {
     const curSceneId = canvas.scene.id;
 
-    if (!gridScaler.cavasGridTempSettings[curSceneId]) {
-      gridScaler.saveGridSettings(curSceneId);
-      gridScaler.makeGridVisible();
+    if (isActive) {
+      if (!gridScaler.cavasGridTempSettings[curSceneId]) {
+        gridScaler.saveGridSettings(curSceneId);
+        gridScaler.makeGridVisible();
+      }
     } else {
-      gridScaler.resetGridSettings(curSceneId);
+      if (gridScaler.cavasGridTempSettings[curSceneId]) {
+        gridScaler.resetGridSettings(curSceneId);
+      }
     }
   }
 
   // Turn the grid red and make it fully opaque and visible.
-  makeGridVisible() {
-    canvas.grid.visible = true;
-
-    gridUtils.refreshGrid({
-      grid: true,
-      alpha: 1,
-      color: "#FF0000"
+  async makeGridVisible() {
+    await canvas.scene.update({
+      "grid.alpha": 1,
+      "grid.color": "#FF0000"
     });
   }
 
   // Save the color and alpha of the current scene's grid.
   // We'll use this to reset it when the preview is toggled off. 
   saveGridSettings(sceneId) {
-    gridScaler.cavasGridTempSettings[sceneId] = {
-      visible: GridLayer.instance.visible,
-      alpha: GridLayer.instance.alpha,
-      color: GridLayer.instance.color
+    const scene = canvas.scene;
+    
+    const settings = {
+      alpha: scene.grid.alpha,
+      color: scene.grid.color
     };
+
+    gridScaler.cavasGridTempSettings[sceneId] = settings;
   }
 
   // Set the grid's color and alpha back to their original settings.
-  resetGridSettings(sceneId) {
+  async resetGridSettings(sceneId) {
     const settings = gridScaler.cavasGridTempSettings[sceneId];
 
     if (settings) {
-      canvas.grid.visible = settings.visible;
-
-      gridUtils.refreshGrid({
-        grid: true,
-        alpha: settings.alpha,
-        color: settings.color
+      await canvas.scene.update({
+        "grid.alpha": settings.alpha,
+        "grid.color": settings.color
       });
 
       gridScaler.cavasGridTempSettings[sceneId] = null;
