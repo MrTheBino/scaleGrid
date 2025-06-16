@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.0] - 2025-06-16
+- Updated module for Foundry V13. 
+
+## [1.4.5] - 2024-08-20
+- Compatibility for Foundry v12.
+
+## [1.4.4] - 2023-11-07
+- Fixed an issue where pointer/mouse object could not be found.
+
 ## [1.2.0] - 2022-06-05 
 ### Added
 - New "Toggle Grid" button for quickly showing the current grid without having to go into the scene configuration.
