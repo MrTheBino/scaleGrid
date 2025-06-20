@@ -85,71 +85,92 @@ class ScaleGridLayer extends CanvasLayer {
   // <================== Button Setup ====================>
   setButtons() {
     gridScaler.newButtons = {
-      activeTool: "GridScaler",
       name: "grid",
       icon: "fas fa-border-all",
-      layer: "controls",
+      order: 11,
       title: "Grid Controls",
-      tools: [
-        {
+      visible: true,
+      onChange: () => {},
+      tools: {
+        DrawGridTool: {
           icon: "fas fa-square",
           name: "DrawGridTool",
+          order: 2,
           title: "Set grid by drawing either a square or hexagon",
           button: true,
-          onClick: gridScaler.setupDrawGrid
+          onChange: gridScaler.setupDrawGrid
         },
-        {
+        Draw3x3Tool: {
           icon: "fas fa-th",
           name: "Draw3x3Tool",
+          order: 2,
           title: "Set grid by drawing a 3x3 box",
           button: true,
-          onClick: gridScaler.setupDraw3X3
+          onChange: gridScaler.setupDraw3X3
         },
-        {
+        AdjustXTool: {
           icon: "fas fa-ruler-horizontal",
           name: "AdjustXTool",
+          order: 4,
           title: "Set the X position of the grid",
           button: true,
-          onClick: gridScaler.setupAdjustX
+          onChange: gridScaler.setupAdjustX
         },
-        {
+        AdjustYTool: {
           icon: "fas fa-ruler-vertical",
           name: "AdjustYTool",
+          order: 5,
           title: "Set the Y position of the grid",
           button: true,
-          onClick: gridScaler.setupAdjustY
+          onChange: gridScaler.setupAdjustY
         },
-        {
+        MoveGridTool: {
           icon: "fas fa-object-group",
           name: "MoveGridTool",
+          order: 6,
           title: "Move and scale the grid",
           button: true,
-          onClick: gridScaler.openGridMoveDialog
+          onChange: gridScaler.openGridMoveDialog
         },
-        {
+        ManualGridSizeTool: {
           icon: 'fas fa-pen-square',
           name: "ManualGridSizeTool",
+          order: 7,
           title: "Set the grid by number of squares or hexes",
           button: true,
-          onClick: gridScaler.openGridSizeDialog
+          onChange: gridScaler.openGridSizeDialog
         },
-        {
+        ToggleGridTool: {
           icon: 'fas fa-border-none',
           name: "ToggleGridTool",
+          order: 8,
           title: "Toggle the grid display temporarily",
           toggle: true,
-          onClick: gridScaler.toggleGrid
+          onChange: (_, isActive) => { 
+            gridScaler.toggleGrid(isActive); 
+          }
         },
-        {
+        ResetGridTool: {
           icon: "fas fa-undo",
           name: "ResetGridTool",
+          order: 9,
           title: "Reset the grid",
           button: true,
-          onClick: e => {
-            this.resetDialog(e);
+          onChange: (e) => {
+            gridScaler.resetDialog(e);
           }
+        },
+        dummyTool: {
+          // remove select tool when foundry issue #12966 is resolved
+          icon: "fa-solid fa-expand",
+          name: "dummyTool",
+          title: "functionless default tool", 
+          order: 10,
+          visible: false, 
+          onChange: () => {}
         }
-      ]
+      },
+      activeTool: "dummyTool"  // set to "" when foundry issue #12966 is resolved- currently need to specify a dummy Tool as active Tool.
     }
   }
 
@@ -938,49 +959,50 @@ class ScaleGridLayer extends CanvasLayer {
   // to be fully transparent or just really light. In those cases, it's a pain to manually configure 
   // the settings to make it easier to see while you line up the Foundry grid. This lets you toggle 
   // an easy to see grid temporarily to make the job easier.
-  toggleGrid() {
+  toggleGrid(isActive) {
     const curSceneId = canvas.scene.id;
 
-    if (!gridScaler.cavasGridTempSettings[curSceneId]) {
-      gridScaler.saveGridSettings(curSceneId);
-      gridScaler.makeGridVisible();
+    if (isActive) {
+      if (!gridScaler.cavasGridTempSettings[curSceneId]) {
+        gridScaler.saveGridSettings(curSceneId);
+        gridScaler.makeGridVisible();
+      }
     } else {
-      gridScaler.resetGridSettings(curSceneId);
+      if (gridScaler.cavasGridTempSettings[curSceneId]) {
+        gridScaler.resetGridSettings(curSceneId);
+      }
     }
   }
 
   // Turn the grid red and make it fully opaque and visible.
-  makeGridVisible() {
-    canvas.grid.visible = true;
-
-    gridUtils.refreshGrid({
-      grid: true,
-      alpha: 1,
-      color: "#FF0000"
+  async makeGridVisible() {
+    await canvas.scene.update({
+      "grid.alpha": 1,
+      "grid.color": "#FF0000"
     });
   }
 
   // Save the color and alpha of the current scene's grid.
   // We'll use this to reset it when the preview is toggled off. 
   saveGridSettings(sceneId) {
-    gridScaler.cavasGridTempSettings[sceneId] = {
-      visible: GridLayer.instance.visible,
-      alpha: GridLayer.instance.alpha,
-      color: GridLayer.instance.color
+    const scene = canvas.scene;
+    
+    const settings = {
+      alpha: scene.grid.alpha,
+      color: scene.grid.color
     };
+
+    gridScaler.cavasGridTempSettings[sceneId] = settings;
   }
 
   // Set the grid's color and alpha back to their original settings.
-  resetGridSettings(sceneId) {
+  async resetGridSettings(sceneId) {
     const settings = gridScaler.cavasGridTempSettings[sceneId];
 
     if (settings) {
-      canvas.grid.visible = settings.visible;
-
-      gridUtils.refreshGrid({
-        grid: true,
-        alpha: settings.alpha,
-        color: settings.color
+      await canvas.scene.update({
+        "grid.alpha": settings.alpha,
+        "grid.color": settings.color
       });
 
       gridScaler.cavasGridTempSettings[sceneId] = null;
@@ -993,7 +1015,7 @@ class ScaleGridLayer extends CanvasLayer {
   initialize() {
     Hooks.on('getSceneControlButtons', controls => {
       if (game.user.isGM) {
-        controls.push(gridScaler.newButtons);
+        controls.grid = gridScaler.newButtons;
       }
     });
 
